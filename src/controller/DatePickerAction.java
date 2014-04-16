@@ -8,6 +8,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import javax.mail.Message;
@@ -17,12 +18,18 @@ import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
+import session.SessionBeanFactory;
+import session.SessionBeanLocal;
+import session.WebSession;
+
 import com.opensymphony.xwork2.ActionSupport;
+import com.opensymphony.xwork2.Preparable;
 
 import database.ConnectionCreation;
+import entity.Employee;
 import entity.Holiday;
 
-public class DatePickerAction extends ActionSupport {
+public class DatePickerAction extends ActionSupport implements Preparable {
 
 	private static final long serialVersionUID = 1L;
 	private Date date1;
@@ -34,8 +41,10 @@ public class DatePickerAction extends ActionSupport {
 	private ResultSet results;
 	private List<Holiday> holidays = new ArrayList<Holiday>();
 	//private String managerEmail;
-
-
+	private Map<String, Object> session;
+	private SessionBeanLocal ejbSessionBean;
+	private String holidayId;
+	private Employee employee;
 	SimpleDateFormat format2 = new SimpleDateFormat("dd-MM-yyyy");
 	static Properties properties = new Properties();
 	static
@@ -47,6 +56,13 @@ public class DatePickerAction extends ActionSupport {
 		properties.put("mail.smtp.port", "465");
 	}
 
+	@Override
+	public void prepare() throws Exception {
+		session = WebSession.getWebSessionInstance();
+		ejbSessionBean = SessionBeanFactory.getSessionBeanInstance();
+		employee = (Employee) session.get("employee");
+		
+	}
 	public Date getDate1() throws ParseException {
 
 		return (Date) format2.parse(format2.format(date1));
@@ -85,13 +101,33 @@ public class DatePickerAction extends ActionSupport {
 			System.out.println(date1);
 			System.out.println(date2);
 			System.out.println(date3);
+			
+			Holiday holiday;
+			boolean merge = false;
+			if(!holidayId.equals("")){
+				int id = Integer.parseInt(holidayId);
+				holiday = ejbSessionBean.findHolidayById(id);
+				merge = true;
+			}
+			else{
+				holiday = new Holiday();
+			}
+			holiday.setDate1(date1);
+			holiday.setDate2(date2);
+			holiday.setDate3(date3);
+			if(merge){
+				ejbSessionBean.merge(holiday);
+			}
+			else{
+				ejbSessionBean.persist(holiday);
+			}
 		
-			connection = ConnectionCreation.getConnection();
-			addHolidays = connection.prepareStatement("INSERT INTO holiday(date1, date2, date3) VALUES(?, ?, ?)");
-			addHolidays.setDate(1, (java.sql.Date) date1);
-			addHolidays.setDate(2, (java.sql.Date) date2);
-			addHolidays.setDate(3, (java.sql.Date) date3);
-			addHolidays.executeUpdate();
+//			connection = ConnectionCreation.getConnection();
+//			addHolidays = connection.prepareStatement("INSERT INTO holiday(date1, date2, date3) VALUES(?, ?, ?)");
+//			addHolidays.setDate(1, (java.sql.Date) date1);
+//			addHolidays.setDate(2, (java.sql.Date) date2);
+//			addHolidays.setDate(3, (java.sql.Date) date3);
+//			addHolidays.executeUpdate();
 			Session session = Session.getDefaultInstance(properties,  new javax.mail.Authenticator() {
 				protected PasswordAuthentication getPasswordAuthentication() {
 					return new 
@@ -134,31 +170,33 @@ public class DatePickerAction extends ActionSupport {
 		this.holidays = holidays;
 	}
 
-	public List<Holiday> getAllHolidays(){
-		try {
-			
-
-			connection = ConnectionCreation.getConnection();
-			getHolidays = connection.prepareStatement("SELECT * FROM HOLIDAY");
-			results = getHolidays.executeQuery();
-
-			while(results.next()){
-				Holiday holiday = new Holiday();
-				holiday.setDate1(results.getDate("date1"));
-				holiday.setDate2(results.getDate("date2"));
-				holiday.setDate3(results.getDate("date3"));
-				holidays.add(holiday);
-
-			}
-			connection.close();
-			getHolidays.close();
-			results.close();
-
-		} catch (Exception e) {
-			e.printStackTrace();
-
-		}
-		return  holidays;
+	public String getAllHolidays(){
+		holidays = ejbSessionBean.getHolidays();
+		return SUCCESS;
+//		try {
+//			
+//
+//			connection = ConnectionCreation.getConnection();
+//			getHolidays = connection.prepareStatement("SELECT * FROM HOLIDAY");
+//			results = getHolidays.executeQuery();
+//
+//			while(results.next()){
+//				Holiday holiday = new Holiday();
+//				holiday.setDate1(results.getDate("date1"));
+//				holiday.setDate2(results.getDate("date2"));
+//				holiday.setDate3(results.getDate("date3"));
+//				holidays.add(holiday);
+//
+//			}
+//			connection.close();
+//			getHolidays.close();
+//			results.close();
+//
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//
+//		}
+//		return  holidays;
 	}
 	
 	public String displayHolidays(){

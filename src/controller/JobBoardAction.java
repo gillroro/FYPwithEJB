@@ -9,16 +9,20 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import session.SessionBeanFactory;
+import session.SessionBeanLocal;
 import session.WebSession;
 
 import com.opensymphony.xwork2.ActionSupport;
+import com.opensymphony.xwork2.Preparable;
 
 import database.ConnectionCreation;
 import entity.Employee;
 import entity.Job;
 
-public class JobBoardAction extends ActionSupport {
+public class JobBoardAction extends ActionSupport implements Preparable {
 
 
 	private static final long serialVersionUID = 1L;
@@ -35,6 +39,16 @@ public class JobBoardAction extends ActionSupport {
 	private PreparedStatement getJobByDepartment;
 	private ResultSet results;
 	SimpleDateFormat format2 = new SimpleDateFormat("dd-MM-yyyy");
+	private Map<String, Object> session;
+	private SessionBeanLocal ejbSessionBean;
+	private String jobId;
+	
+	@Override
+	public void prepare() throws Exception {
+		session = WebSession.getWebSessionInstance();
+		ejbSessionBean = SessionBeanFactory.getSessionBeanInstance();
+		
+	}
 
 	public String forward(){
 		return NONE;
@@ -42,18 +56,39 @@ public class JobBoardAction extends ActionSupport {
 
 	public String execute() throws ClassNotFoundException, SQLException{
 		
-		connection = ConnectionCreation.getConnection();
-		addJob = connection.prepareStatement("INSERT INTO Job(job_name, description, department, closing_date) VALUES(?,?,?,?)");
-		addJob.setString(1, getJob_name());
-		addJob.setString(2, getDescription());
-		addJob.setString(3, getDepartment());
-		addJob.setDate(4, (java.sql.Date)closing_date);
-		addJob.executeUpdate();
-		WebSession.put("Job", job);
-		//		job.setDepartment(department);
-		//		job.setJobDesc(description);
-		//		job.setJobName(jobName);
-		//		jobs.add(job);
+//		connection = ConnectionCreation.getConnection();
+//		addJob = connection.prepareStatement("INSERT INTO Job(job_name, description, department, closing_date) VALUES(?,?,?,?)");
+//		addJob.setString(1, getJob_name());
+//		addJob.setString(2, getDescription());
+//		addJob.setString(3, getDepartment());
+//		addJob.setDate(4, (java.sql.Date)closing_date);
+//		addJob.executeUpdate();
+//		WebSession.put("Job", job);
+//		//		job.setDepartment(department);
+//		//		job.setJobDesc(description);
+//		//		job.setJobName(jobName);
+//		//		jobs.add(job);
+//		
+		Job job;
+		boolean merge = false;
+		if(!jobId.equals("")){
+			int id = Integer.parseInt(jobId);
+			job = ejbSessionBean.findJobById(id);
+			merge = true;
+		}
+		else {
+			job = new Job();
+		}
+		job.setJobName(job_name);
+		job.setJobDesc(description);
+		job.setDepartment(department);
+		job.setClosing_date(closing_date);
+		if(merge){
+			ejbSessionBean.merge(job);
+		}
+		else {
+			ejbSessionBean.persist(job);
+		}
 		return SUCCESS;
 	}
 
@@ -112,35 +147,9 @@ public class JobBoardAction extends ActionSupport {
 		this.job_name = job_name;
 	}
 
-	public List<Job> getAllJobs(){
-		try {
-			
-			connection = ConnectionCreation.getConnection();
-			getJobs = connection.prepareStatement("SELECT * FROM JOB");
-			results = getJobs.executeQuery();
-			java.util.Date today = new java.util.Date();
-			Date sqlToday = new Date(today.getTime());
-			while(results.next()){
-				Job job = new Job();
-				job.setJobName(results.getString("job_name"));
-				job.setJobDesc(results.getString("description"));
-				job.setDepartment(results.getString("department"));
-				job.setClosing_date(results.getDate("closing_date"));
-				if(sqlToday.before(job.getClosing_date())){
-					jobs.add(job);
-				}
-				//jobs.add(job);
-				WebSession.put("Job", jobs);
-			}
-			connection.close();
-			getJobs.close();
-			results.close();
-
-		} catch (Exception e) {
-			e.printStackTrace();
-
-		}
-		return  jobs;
+	public String getAllJobs(){
+		jobs = ejbSessionBean.getJobs();
+		return SUCCESS;
 	}
 
 	public String displayList(){
@@ -156,32 +165,9 @@ public class JobBoardAction extends ActionSupport {
 		}
 	}
 
-	public List<Job> getJobByDepartment(){
-		try {
-			
-
-			connection = ConnectionCreation.getConnection();
-			getJobByDepartment = connection.prepareStatement("SELECT * FROM JOB WHERE department LIKE ?");
-			getJobByDepartment.setString(1, "%"+department+"%");
-			results = getJobByDepartment.executeQuery();
-
-			while(results.next()){
-				Job job = new Job();
-				job.setJobName(results.getString("job_name"));
-				job.setJobDesc(results.getString("description"));
-				job.setDepartment(results.getString("department"));
-				job.setClosing_date(results.getDate("closing_date"));
-				jobs.add(job);
-			}
-			connection.close();
-			getJobs.close();
-			results.close();
-
-		} catch (Exception e) {
-			e.printStackTrace();
-
-		}
-		return  jobs;
+	public String getJobByDepartment(){
+		jobs = ejbSessionBean.findJobByDepartment(department);
+		return "success";
 	}
 	
 	public String displayDepartmentList(){
@@ -206,8 +192,5 @@ public class JobBoardAction extends ActionSupport {
 		System.out.println();
 		return NONE;
 	}
-
-
-
 
 }

@@ -7,12 +7,20 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+
+import session.SessionBeanFactory;
+import session.SessionBeanLocal;
+import session.WebSession;
+
 import com.opensymphony.xwork2.ActionSupport;
+import com.opensymphony.xwork2.Preparable;
+
 import database.ConnectionCreation;
 import entity.Employee;
 import entity.Project;
 
-public class ProjectAction extends ActionSupport {
+public class ProjectAction extends ActionSupport implements Preparable {
 
 	
 	private static final long serialVersionUID = 1L;
@@ -30,22 +38,52 @@ public class ProjectAction extends ActionSupport {
 	private ResultSet results;
 	private List<Project> projects = new ArrayList<Project>();
 	private List<Employee> members = new ArrayList<Employee>();
+	private Map<String, Object> session;
+	private SessionBeanLocal ejbSessionBean;
+	private String projectId;
+	private Employee employee;
 	
+	@Override
+	public void prepare() throws Exception {
+		session = WebSession.getWebSessionInstance();
+		ejbSessionBean = SessionBeanFactory.getSessionBeanInstance();
+		employee = (Employee) session.get("employee");
+	}
 	
 	public String createProject(){
-		try {
-			connection = ConnectionCreation.getConnection();
-			addProject = connection.prepareStatement("INSERT INTO project(projectName, startDate, endDate, department) VALUES (?,?,?,?)");
-			addProject.setString(1, getProjectName());
-			addProject.setDate(2, getStartDate());
-			addProject.setDate(3, getEndDate());
-			addProject.setString(4, getDepartment());
-			addProject.executeUpdate();
-			connection.close();
-			addProject.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
+		Project project;
+		boolean merge = false;
+		if(!projectId.equals("")){
+			int id = Integer.parseInt(projectId);
+			project = ejbSessionBean.findProjectById(id);
+			merge = true;
 		}
+		else{
+			project = new Project();
+		}
+		project.setProjectName(projectName);
+		project.setStartDate(startDate);
+		project.setEndDate(endDate);
+		project.setDepartment(department);
+		if(merge){
+			ejbSessionBean.merge(project);
+		}
+		else{
+			ejbSessionBean.persist(project);
+		}
+//		try {
+//			connection = ConnectionCreation.getConnection();
+//			addProject = connection.prepareStatement("INSERT INTO project(projectName, startDate, endDate, department) VALUES (?,?,?,?)");
+//			addProject.setString(1, getProjectName());
+//			addProject.setDate(2, getStartDate());
+//			addProject.setDate(3, getEndDate());
+//			addProject.setString(4, getDepartment());
+//			addProject.executeUpdate();
+//			connection.close();
+//			addProject.close();
+//		} catch (SQLException e) {
+//			e.printStackTrace();
+//		}
 		
 		return SUCCESS;
 	}
@@ -74,58 +112,14 @@ public class ProjectAction extends ActionSupport {
 		return SUCCESS;
 	}
 	
-	public List<Project> getAllProjects(){
-		try {
-			connection = ConnectionCreation.getConnection();
-			getProjects = connection.prepareStatement("SELECT * FROM PROJECT");
-			results = getProjects.executeQuery();
-			while(results.next()){
-				Project project = new Project();
-				project.setProjectName(results.getString("projectName"));
-				project.setStartDate(results.getDate("startDate"));
-				project.setEndDate(results.getDate("endDate"));
-				project.setDepartment(results.getString("department"));
-				projects.add(project);
-
-			}
-			connection.close();
-			getProjects.close();
-			results.close();
-		} catch (SQLException e) {
-			
-			e.printStackTrace();
-		}
-		return projects;
+	public String getAllProjects(){
+		projects = ejbSessionBean.getProjects();
+		return SUCCESS;
 	}
 	
-	public List<Employee> getAllEmployees(){
-		try {
-			
-			connection =ConnectionCreation.getConnection();
-			getEmployees = connection.prepareStatement("SELECT * FROM EMPLOYEE");
-			results = getEmployees.executeQuery();
-			while(results.next()){
-				Employee employee = new Employee();
-				employee.setFirstName(results.getString("first_name"));
-				employee.setSurname(results.getString("surname"));
-				employee.setAddress(results.getString("address"));
-				employee.setUsername(results.getString("username"));
-				employee.setPassword(results.getString("password"));
-				employee.setUserType(results.getString("user_type"));
-
-				if(employee.getUserType().equalsIgnoreCase("employee")){
-					members.add(employee);
-					
-					
-				}
-			}
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		
-		return members;
-		
+	public String getAllEmployees(){
+		members = ejbSessionBean.getEmployeesByUserType("employee");
+		return SUCCESS;
 	}
 	
 	public String displayAllProjects(){
@@ -197,11 +191,4 @@ public class ProjectAction extends ActionSupport {
 	public void setEmployeeName(String employeeName) {
 		this.employeeName = employeeName;
 	}
-	
-
-	
-	
-	
-	
-
 }

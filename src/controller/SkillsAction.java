@@ -6,17 +6,22 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+
+import session.SessionBeanFactory;
+import session.SessionBeanLocal;
+import session.WebSession;
 
 import com.opensymphony.xwork2.ActionSupport;
+import com.opensymphony.xwork2.Preparable;
 
 import database.ConnectionCreation;
+import entity.Employee;
 import entity.Skill;
 
-public class SkillsAction extends ActionSupport {
-
-	/**
-	 * 
-	 */
+public class SkillsAction extends ActionSupport implements Preparable {
+	private Map<String, Object> session;
+	private SessionBeanLocal ejbSessionBean;
 	private static final long serialVersionUID = 1L;
 	private String skillName;
 	private String description;
@@ -28,10 +33,15 @@ public class SkillsAction extends ActionSupport {
 	private PreparedStatement addSkillToEmployee;
 	private ResultSet results;
 	private String proof;
+	private Employee employee;
+	private String skillId;
 	
-	
-
-
+	public Employee getEmployee() {
+		return employee;
+	}
+	public void setEmployee(Employee employee) {
+		this.employee = employee;
+	}
 	public String getProof() {
 		return proof;
 	}
@@ -54,23 +64,9 @@ public class SkillsAction extends ActionSupport {
 		return skills;
 	}
 	
-	public List<Skill> getAllSkills() {
-		try{
-			
-			connection = ConnectionCreation.getConnection();
-			getSkills = connection.prepareStatement("SELECT * FROM Skill");
-			results = getSkills.executeQuery();
-			while(results.next()){	
-				Skill skill = new Skill();	
-				skill.setName(results.getString("Name"));
-				skill.setDescription(results.getString("Description"));
-				skills.add(skill);
-			}
-		}
-		catch(Exception e){
-			e.printStackTrace();
-		}
-		return skills;
+	public String getAllSkills() {
+		skills = ejbSessionBean.getSkills();
+		return SUCCESS;
 	}
 	
 	public String display(){
@@ -88,19 +84,25 @@ public class SkillsAction extends ActionSupport {
 	}
 
 	public String execute(){
-		try {
-	
-			connection = ConnectionCreation.getConnection();
-			addSkills = connection.prepareStatement("INSERT INTO Skill(name, description) VALUES(?,?)");
-			addSkills.setString(1, getSkillName());
-			addSkills.setString(2, getDescription());
-			addSkills.executeUpdate();
-			connection.close();addSkills.close();
-			return SUCCESS;
-		} catch (Exception e) {
-			e.printStackTrace();
-			return "failure";
+		Skill skill;
+		boolean merge = false;
+		if(!skillId.equals("")){
+			int id = Integer.parseInt(skillId);
+			skill = ejbSessionBean.findSkillById(id);
+			merge = true;
 		}
+		else {
+			skill = new Skill();
+		}
+		skill.setName(skillName);
+		skill.setDescription(description);
+		if(merge){
+			ejbSessionBean.merge(skill);
+		}
+		else {
+			ejbSessionBean.persist(skill);
+		}
+		return SUCCESS;
 		
 	}
 	
@@ -133,6 +135,13 @@ public class SkillsAction extends ActionSupport {
 	
 	public String forward(){
 		return NONE;
+	}
+	@Override
+	public void prepare() throws Exception {
+		session = WebSession.getWebSessionInstance();
+		ejbSessionBean = SessionBeanFactory.getSessionBeanInstance();
+		employee = (Employee) session.get("employee");
+		
 	}
 
 

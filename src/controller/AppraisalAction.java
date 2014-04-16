@@ -16,18 +16,18 @@ import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
-import session.SessionBean;
 import session.SessionBeanFactory;
 import session.SessionBeanLocal;
 import session.WebSession;
 
+import com.opensymphony.xwork2.ActionSupport;
 import com.opensymphony.xwork2.Preparable;
 
 import database.ConnectionCreation;
 import entity.Appraisal;
 import entity.Employee;
 
-public class AppraisalAction implements Preparable{
+public class AppraisalAction extends ActionSupport implements Preparable{
 	private Map<String, Object> session;
 	private SessionBeanLocal ejbSessionBean;
 	private List<String> attendance= new ArrayList<String>();

@@ -16,8 +16,13 @@ public class EmployeeStrategy implements UserStrategy {
 
 	@Override
 	public boolean login(String username, String password) {
-		
-		session.put("Employee", "employee");
+		Employee employee = ejbSessionBean.authenticateEmployee(username);
+		if(employee.getUserType().equals("manager")){
+			session.put("manager", employee);
+		}
+		else{
+			session.put("employee", employee);	
+		}
 		return true;
 	}
 
@@ -32,7 +37,17 @@ public class EmployeeStrategy implements UserStrategy {
 	@Override
 	public void register(String username, String password, String firstName,
 			String surname, String address, int salary, String userType) {
-		
+		Employee employee = new Employee();
+		employee.setFirstName(firstName);
+		employee.setAddress(address);
+		employee.setSurname(surname);
+		employee.setUsername(username);
+		employee.setPassword(password);
+		employee.setSalary(salary);
+		employee.setUserType(userType);
+		ejbSessionBean.persist(employee);
+		session = ActionContext.getContext().getSession();
+		session.put("employee", employee);
 
 	}
 
